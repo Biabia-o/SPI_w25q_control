@@ -29,7 +29,7 @@
 
 
 
-module SPI_control(
+module SPI_w25q_control(
 
 input wire sys_clk,
 input wire sys_rst_n,
@@ -44,14 +44,7 @@ output reg MOSI
 );
 
 
-
-
 wire clk_10MHz;
-
-
-//localparam ADDR = 24'h005500;
-
-
 
 
 localparam Wirte_Enable = 8'h06;//写使能
@@ -109,20 +102,20 @@ reg flag;
 localparam Sector_Erase_Time_MAX = 24'd4_000_000;
 localparam write_data_Time_cnt_MAX = 16'd30000;
 
-localparam 	IDLE 					= 13'b00000_0000_0000,
+localparam 		IDLE 				= 13'b00000_0000_0000,
 			Wirte_Enable_state 		= 13'b00000_0000_0001,
 			Sector_Erase_state 		= 13'b00000_0000_0010,
 			Sector_Erase_addr 		= 13'b00000_0000_0100,
 			Sector_Erase_Time 		= 13'b00000_0000_1000,
-			Page_Program_instruct 	= 13'b00000_0001_0000,
+			Page_Program_instruct 		= 13'b00000_0001_0000,
 			Page_Program_ADDR 		= 13'b00000_0010_0000,
-			write_data 				= 13'b00000_0100_0000,
+			write_data 			= 13'b00000_0100_0000,
 			write_data_Time 		= 13'b00000_1000_0000,
 			Read_Data_instruct 		= 13'b00001_0000_0000,
 			Read_Data_ADDR 			= 13'b00010_0000_0000,
 			Read_Page_data 			= 13'b00100_0000_0000,
 			Chip_Erase_state 		= 13'b01000_0000_0000,
-			Read_END 				= 13'b10000_0000_0000;
+			Read_END 			= 13'b10000_0000_0000;
 				
 				
 				
@@ -702,7 +695,7 @@ assign SPI_CLK = (CS_n ||(Sector_Erase_addr_cnt == 'd25) || (write_data_Time_cnt
 
 mkey_uart_rx mkey_uart_rx_inst(
     .			  sys_clk(sys_clk),                  
-    .             sys_rst_n(sys_rst_n),               
+    .             	  sys_rst_n(sys_rst_n),               
     
     .			  rx(uart_rxpin),               
     .			  out_flag(uart_done),   //接收一帧数据完成标志            
@@ -730,25 +723,5 @@ data data_inst(
    // Clock in ports
     .clk_in1(sys_clk));      // input clk_in1
 	
-	
-	
-	
-	ila_0 ila_0_inst (
-	.clk(sys_clk), // input wire clk
-	
-	
-	.probe0(CS_n), // input wire [0:0]  probe0  
-	.probe1(SPI_CLK), // input wire [0:0]  probe1 
-	.probe2(MISO), // input wire [0:0]  probe2 
-	.probe3(MOSI), // input wire [0:0]  probe3
-	.probe4(Page_ADDR),
-	.probe5(write_data_cnt),
-	.probe6(read_data_cnt),
-	.probe7(Chip_Erase_cnt),
-	.probe8(uart_done)
-	);
-	
-
-
 
 endmodule
