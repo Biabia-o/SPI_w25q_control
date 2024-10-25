@@ -1,35 +1,4 @@
-`timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2024/09/13 16:39:40
-// Design Name: 
-// Module Name: SPI_control
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-//w25q256
-//512个Bank，一个Bank16个扇区，一个扇区16个页，1页256字节
-//w25q16
-//32个Bank，一个Bank16个扇区，一个扇区16个页，一页256字节
-
-
-
-module SPI_w25q_control(
+module SPI_control(
 
 input wire sys_clk,
 input wire sys_rst_n,
@@ -44,7 +13,11 @@ output reg MOSI
 );
 
 
+
+
 wire clk_10MHz;
+
+
 
 
 localparam Wirte_Enable = 8'h06;//写使能
@@ -58,8 +31,8 @@ localparam Chip_Erase = 8'h60;//或8'hC7,芯片擦除，执行该指令之前必
 
 
 
-reg [12:0]state;
-reg [12:0]state_next;
+reg [11:0]state;
+reg [11:0]state_next;
 
 
 wire uart_done;
@@ -102,20 +75,19 @@ reg flag;
 localparam Sector_Erase_Time_MAX = 24'd4_000_000;
 localparam write_data_Time_cnt_MAX = 16'd30000;
 
-localparam 		IDLE 				= 13'b00000_0000_0000,
-			Wirte_Enable_state 		= 13'b00000_0000_0001,
-			Sector_Erase_state 		= 13'b00000_0000_0010,
-			Sector_Erase_addr 		= 13'b00000_0000_0100,
-			Sector_Erase_Time 		= 13'b00000_0000_1000,
-			Page_Program_instruct 		= 13'b00000_0001_0000,
-			Page_Program_ADDR 		= 13'b00000_0010_0000,
-			write_data 			= 13'b00000_0100_0000,
-			write_data_Time 		= 13'b00000_1000_0000,
-			Read_Data_instruct 		= 13'b00001_0000_0000,
-			Read_Data_ADDR 			= 13'b00010_0000_0000,
-			Read_Page_data 			= 13'b00100_0000_0000,
-			Chip_Erase_state 		= 13'b01000_0000_0000,
-			Read_END 			= 13'b10000_0000_0000;
+localparam 	IDLE 					= 12'b0000_0000_0000,
+			Wirte_Enable_state 		= 12'b0000_0000_0001,
+			Sector_Erase_state 		= 12'b0000_0000_0010,
+			Sector_Erase_addr 		= 12'b0000_0000_0100,
+			Sector_Erase_Time 		= 12'b0000_0000_1000,
+			Page_Program_instruct 	= 12'b0000_0001_0000,
+			Page_Program_ADDR 		= 12'b0000_0010_0000,
+			write_data 				= 12'b0000_0100_0000,
+			write_data_Time 		= 12'b0000_1000_0000,
+			Read_Data_instruct 		= 12'b0001_0000_0000,
+			Read_Data_ADDR 			= 12'b0010_0000_0000,
+			Read_Page_data 			= 12'b0100_0000_0000,
+			Chip_Erase_state 		= 12'b1000_0000_0000;
 				
 				
 				
@@ -286,7 +258,7 @@ always@(posedge clk_10MHz)begin
 	else if((Sector_Erase_Time_cnt == Sector_Erase_Time_MAX - 'd1) && Erase_addr == 24'h000000)
 		Erase_addr <= 24'h000000;
 	else if(Sector_Erase_Time_cnt == Sector_Erase_Time_MAX - 'd1)
-		Erase_addr <= Erase_addr - 24'h001000;
+		Erase_addr <= Erase_addr - 24'h001000;			//如果擦除当前扇区擦除地址就回到上一扇区地址
 	else
 		Erase_addr <= Erase_addr;
 end
@@ -303,7 +275,7 @@ always@(posedge clk_10MHz)begin
 	else if((Sector_Erase_Time_cnt == Sector_Erase_Time_MAX - 'd1) && Page_ADDR == 24'h000000)
 		Page_ADDR <= 24'h000000;
 	else if(Sector_Erase_Time_cnt == Sector_Erase_Time_MAX - 'd1)
-		Page_ADDR <= Page_ADDR - 24'h001000;
+		Page_ADDR <= Page_ADDR - 24'h001000;			//如果擦除当前扇区页写地址就回到上一扇区起始地址
 	else if(flag == 1'b1)
 		Page_ADDR <= Page_ADDR + 24'h000100;
 	else
@@ -334,7 +306,7 @@ always@(posedge clk_10MHz)begin
 	else if((Sector_Erase_Time_cnt == Sector_Erase_Time_MAX - 'd1) && read_ADDR == 24'h000000)
 		read_ADDR <= 24'h000000;
 	else if(Sector_Erase_Time_cnt == Sector_Erase_Time_MAX - 'd1)
-		read_ADDR <= read_ADDR - 24'h001000;
+		read_ADDR <= read_ADDR - 24'h001000;		//如果擦除当前扇区读地址回到上一扇区地址
 	else if(write_data_Time_cnt == write_data_Time_cnt_MAX && Page_cnt == 'd0)
 		read_ADDR <= Page_ADDR - 24'h001000;
 	else
@@ -414,7 +386,7 @@ always@(*)begin
 	else begin
 		case(state)
 			IDLE:
-				if(done && (uart_rxdata == Wirte_Enable || uart_rxdata == Chip_Erase || uart_rxdata == Sector_Erase))//8'h06
+				if(done && (uart_rxdata == Wirte_Enable || uart_rxdata == Chip_Erase || uart_rxdata == Sector_Erase))//8'h06、8'h60、8'h20
 					state_next <= Wirte_Enable_state;
 				else if(done && uart_rxdata == Read_Data)//8'h03
 					state_next <= Read_Data_instruct;
@@ -465,7 +437,7 @@ always@(*)begin
 				else
 					state_next <= write_data;
 			write_data_Time:
-				if(write_data_Time_cnt == write_data_Time_cnt_MAX && Sector_cnt == 'd0)
+				if(write_data_Time_cnt == write_data_Time_cnt_MAX && Sector_cnt == 'd0)//Sector_cnt计数到0表示写完一个扇区
 					state_next <= IDLE;
 				else if(write_data_Time_cnt == write_data_Time_cnt_MAX)
 					state_next <= Wirte_Enable_state;
@@ -482,12 +454,10 @@ always@(*)begin
 				else
 					state_next <= Read_Data_ADDR;
 			Read_Page_data:
-				if(read_data_cnt == 'd32767)
-					state_next <= Read_END;
+				if(read_data_cnt == 'd32767)//read_data_cnt为2047表示读取一页数据，read_data_cnt为32767表示读取一个扇区的数据
+					state_next <= IDLE;
 				else
 					state_next <= Read_Page_data;
-			Read_END:
-				state_next <= IDLE;
 		default:state_next <= IDLE;
 		endcase
 	end
@@ -677,7 +647,7 @@ end
 always@(posedge clk_10MHz)begin
 	if(!sys_rst_n)
 		CS_n <= 1'b1;
-	else if((state ==Wirte_Enable_state  && Wirte_Enable_cnt < 4'd9) || (state == Sector_Erase_state) || 
+	else if((state ==Wirte_Enable_state  && Wirte_Enable_cnt < 4'd8) || (state == Sector_Erase_state) || 
 			(state == Sector_Erase_addr) || (state == Page_Program_instruct) || 
 			(state == Page_Program_ADDR) || (state == write_data) || (state == Read_Data_instruct) ||
 			(state == Read_Data_ADDR) || (state == Read_Page_data) || state == Chip_Erase_state)
@@ -688,14 +658,14 @@ end
 
 
 
-assign SPI_CLK = (CS_n ||(Sector_Erase_addr_cnt == 'd25) || (write_data_Time_cnt == 4'd1 ) || Wirte_Enable_cnt == 'd9)?(1'b0):(~clk_10MHz);
+assign SPI_CLK = (CS_n ||(Sector_Erase_addr_cnt == 'd25) || (write_data_Time_cnt == 4'd1 ))?(1'b0):(~clk_10MHz);
 
 
 
 
 mkey_uart_rx mkey_uart_rx_inst(
     .			  sys_clk(sys_clk),                  
-    .             	  sys_rst_n(sys_rst_n),               
+    .             sys_rst_n(sys_rst_n),               
     
     .			  rx(uart_rxpin),               
     .			  out_flag(uart_done),   //接收一帧数据完成标志            
@@ -723,5 +693,7 @@ data data_inst(
    // Clock in ports
     .clk_in1(sys_clk));      // input clk_in1
 	
+
+
 
 endmodule
